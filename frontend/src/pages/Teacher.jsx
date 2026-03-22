@@ -48,9 +48,12 @@ function RollingQR() {
 
   const fetchQR = async () => {
     if (!className || !subject) return;
-    const res = await axios.get("http://localhost:5000/api/qr/generate", {
-      params: { className, subject },
-    });
+    const res = await axios.get(
+      "https://smart-attendance-1-a701.onrender.com/api/qr/generate",
+      {
+        params: { className, subject },
+      },
+    );
     setQrData(res.data);
   };
 
