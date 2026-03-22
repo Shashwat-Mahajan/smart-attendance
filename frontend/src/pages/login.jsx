@@ -134,11 +134,9 @@ const Login = () => {
             <div className="h-12 w-12 bg-indigo-600 rounded-xl flex items-center justify-center">
               <GraduationCap className="h-7 w-7 text-white" />
             </div>
-            <h1 className="text-3xl font-bold text-black">SmartAttend</h1>
+            <h1 className="text-3xl font-bold text-black">Smart Attendance System</h1>
           </div>
-          <p className="text-black/80">
-            Smart QR + Beacon Based Attendance System
-          </p>
+          <p className="text-black/80">Dynamic QR based Attendance System</p>
         </div>
 
         {/* Login Card */}

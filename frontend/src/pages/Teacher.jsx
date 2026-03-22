@@ -64,7 +64,7 @@ function RollingQR() {
       } else {
         clearInterval(attendanceIntervalRef.current);
       }
-    }, 1000); // 1 second gap
+    }, 2000); // 1 second gap
   };
 
   const toggleQR = () => {
@@ -82,7 +82,7 @@ function RollingQR() {
       setTimeout(() => {
         setShowLiveAttendance(true);
         startLiveAttendance(); // Start showing students one by one
-      }, 1500); // 1.5 sec delay after QR appears
+      }, 2000); // 1.5 sec delay after QR appears
     }
   };
 
