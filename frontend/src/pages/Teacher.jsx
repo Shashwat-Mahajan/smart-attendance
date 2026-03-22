@@ -90,11 +90,17 @@ function RollingQR() {
   };
 
   useEffect(() => {
-    if (qrData && qrRef.current) {
+    if (!qrData || !qrRef.current) return;
+
+    try {
       const writer = new BrowserQRCodeSvgWriter();
-      const svgElement = writer.write(JSON.stringify(qrData), 250, 250);
+
+      const svg = writer.write(JSON.stringify(qrData), 250, 250);
+
       qrRef.current.innerHTML = "";
-      qrRef.current.appendChild(svgElement);
+      qrRef.current.appendChild(svg);
+    } catch (err) {
+      console.error("QR Render Error:", err);
     }
   }, [qrData]);
 
