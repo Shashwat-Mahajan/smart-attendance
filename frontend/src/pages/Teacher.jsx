@@ -107,7 +107,7 @@ function RollingQR() {
 
   return (
     <>
-      <Header userName="ravi" department="cse" />
+      <Header userName="Alex" department="cse" />
       <div className="flex flex-row mt-[80px]">
         <AttendancePanel />
         <Card className="p-6 border-2 border-gray-300 rounded-lg shadow-md m-10">
