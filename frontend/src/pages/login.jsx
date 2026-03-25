@@ -47,9 +47,6 @@ const Login = () => {
     const trimmedRole = selectedRole.toLowerCase();
 
     try {
-      // NOTE: The original code used axios to make a request to a local server.
-      // We are simulating this behavior with a fetch call for this single file.
-      // In a real application, you would replace this with a real API endpoint.
       const response = await fetch(
         "https://jsonplaceholder.typicode.com/posts",
         {
