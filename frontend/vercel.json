@@ -1,5 +1,12 @@
 {
   "rewrites": [
-    { "source": "/(.*)", "destination": "/" }
+    {
+      "source": "/loaderio-93438567b306d8bcd257efdbccf5ba1f.txt",
+      "destination": "/loaderio-93438567b306d8bcd257efdbccf5ba1f.txt"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/"
+    }
   ]
 }
