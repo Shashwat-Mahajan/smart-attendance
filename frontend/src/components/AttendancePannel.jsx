@@ -17,8 +17,7 @@ const AttendancePanel = ({ sessionActive, onStartSession, onStopSession }) => {
     { id: "CS2024007", name: "Peter Parker" },
     { id: "CS2024008", name: "Bruce Wayne" },
     { id: "CS2024009", name: "Clark Kent" },
-    { id: "CS2024010", name: "Lois Lane" },
-    { id: "CS2024001", name: "John Doe" },
+    { id: "CS2024010", name: "Lois Lane" }
   ];
 
   const [searchTerm, setSearchTerm] = useState("");

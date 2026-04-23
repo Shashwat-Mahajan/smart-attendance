@@ -2,15 +2,28 @@
 import React from "react";
 import { useNavigate } from 'react-router-dom';
 import logo from "./logo.png";
+import supabase from "../lib/supabaseClient"; // adjust path
 
 const Header = () => {
   const navigate = useNavigate();
 
-  const handleLogout = () => {
-    // Clear user data from local storage
-    localStorage.removeItem("loggedInUser");
-    // Redirect to the login page
-    navigate("/", { replace: true });
+
+  const handleLogout = async () => {
+    try {
+      // 1️⃣ Supabase logout
+      await supabase.auth.signOut();
+
+      // 2️⃣ Clear backend cookie
+      await fetch("http://localhost:5000/api/auth/logout", {
+        method: "POST",
+        credentials: "include",
+      });
+
+      // 3️⃣ Redirect to home
+      navigate("/", { replace: true });
+    } catch (err) {
+      console.error("Logout failed:", err);
+    }
   };
 
   return (

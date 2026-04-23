@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import Header from "./Header1";
+import Header from "../components/Header1";
 
 // Component for the Campus Overview Page
 const CampusOverview = () => (
