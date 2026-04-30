@@ -10,6 +10,7 @@ const qrRoutes = require("./routes/qrRoutes.js");
 const attendanceRoutes = require("./routes/attendanceRoutes.js");
 const authRoutes = require("./routes/authRoutes.js");
 const cookieParser = require("cookie-parser");
+const adminRoutes = require("./routes/adminRoutes.js");
 
 
 
@@ -31,6 +32,7 @@ app.use("/api/qr", qrRoutes);
 app.use("/api/attendance", attendanceRoutes);
 app.use("/api/auth", authRoutes);
 app.use(cookieParser());
+app.use("/api/admin", adminRoutes);
 
 const PORT = process.env.PORT || 5000;
 
