@@ -31,6 +31,11 @@ export default function Verify() {
           body: JSON.stringify({ access_token }),
         });
 
+        await fetch("http://localhost:5000/api/auth/create-profile", {
+          method: "POST",
+          credentials: "include",
+        });
+
         // ✅ clean URL
         window.history.replaceState({}, document.title, "/verify");
 
