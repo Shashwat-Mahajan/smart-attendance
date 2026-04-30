@@ -3,12 +3,24 @@ const { supabase } = require("../config/supabase");
 // 🔐 VERIFY USER (same as before)
 module.exports.verifyUser = async (req, res, next) => {
   try {
-    const token = req.cookies?.access_token;
+    // ✅ 1. Try cookie first
+    let token = req.cookies?.access_token;
 
+    // ✅ 2. If not present → check Authorization header
+    if (!token) {
+      const authHeader = req.headers.authorization;
+
+      if (authHeader && authHeader.startsWith("Bearer ")) {
+        token = authHeader.split(" ")[1];
+      }
+    }
+
+    // ❌ No token anywhere
     if (!token) {
       return res.status(401).json({ message: "No token" });
     }
 
+    // ✅ Verify token
     const { data, error } = await supabase.auth.getUser(token);
 
     if (error || !data.user) {

@@ -4,57 +4,28 @@ const { supabase, supabaseAdmin } = require("../config/supabase");
 
 module.exports.signup = async (req, res) => {
   try {
-    const { email, password, role } = req.body;
+    const { email, password, role, name } = req.body;
 
+    // ✅ restrict roles
     const allowedRoles = ["student", "teacher"];
-
-    // ✅ Role validation
     if (!allowedRoles.includes(role)) {
       return res.status(403).json({ error: "Invalid role" });
     }
 
-    // 🔍 Check existing user (fast check)
-    const { data: existingUser } = await supabase
-      .from("users")
-      .select("id")
-      .eq("email", email)
-      .maybeSingle();
-
-    if (existingUser) {
-      return res.status(400).json({
-        error: "User already exists. Please login.",
-      });
-    }
-
-    // ✅ Create user in auth
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: { role },
+        data: {
+          role,
+          name, // 👈 store temporarily
+        },
         emailRedirectTo: "http://localhost:5173/verify",
       },
     });
 
-    if (error) return res.status(400).json({ error: error.message });
-
-    // ✅ Insert into DB
-    const { error: insertError } = await supabaseAdmin.from("users").insert([
-      {
-        id: data.user.id,
-        email,
-        role,
-      },
-    ]);
-
-    // 🔥 HANDLE DUPLICATE (PRO LEVEL)
-    if (insertError) {
-      if (insertError.code === "23505") {
-        return res.status(400).json({
-          error: "User already exists (duplicate prevented)",
-        });
-      }
-      return res.status(500).json({ error: insertError.message });
+    if (error) {
+      return res.status(400).json({ error: error.message });
     }
 
     res.json({
@@ -99,7 +70,7 @@ module.exports.setCookie = (req, res) => {
   res.cookie("access_token", access_token, {
     httpOnly: true,
     secure: false,
-    sameSite: "Strict",
+    sameSite: "Lax",
     maxAge: 24 * 60 * 60 * 1000,
   });
 
@@ -114,4 +85,43 @@ module.exports.logout = (req, res) => {
   });
 
   res.json({ message: "Logged out successfully" });
+};
+
+
+module.exports.createProfile = async (req, res) => {
+  try {
+    const token = req.cookies.access_token;
+
+    const { data } = await supabase.auth.getUser(token);
+    const user = data.user;
+
+    const role = user.user_metadata.role;
+    const name = user.user_metadata.name;
+
+    // profiles
+    await supabaseAdmin.from("profiles").insert({
+      id: user.id,
+      email: user.email,
+      role,
+      name,
+    });
+
+    // role tables
+    if (role === "student") {
+      await supabaseAdmin.from("students").insert({
+        id: user.id,
+      });
+    }
+
+    if (role === "teacher") {
+      await supabaseAdmin.from("teachers").insert({
+        id: user.id,
+      });
+    }
+
+    res.json({ message: "DONE" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
 };
