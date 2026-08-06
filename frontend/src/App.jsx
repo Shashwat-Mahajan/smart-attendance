@@ -7,9 +7,9 @@ import {
 } from "react-router-dom";
 
 import Home from "./pages/Home";
-import Login from "./pages/login";
-import Signup from "./pages/Signup";
-import Verify from "./pages/verify";
+import Login from "./pages/login"; // lowercase
+import SignUp from "./pages/SignUp"; // capital S, capital U
+import Verify from "./pages/verify"; // lowercase
 
 import RollingQR from "./pages/Teacher";
 import Student from "./pages/Student";
