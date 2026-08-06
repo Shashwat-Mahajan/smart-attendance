@@ -80,7 +80,7 @@ const App = () => {
             path="/signup"
             element={
               <PublicRoute>
-                <Signup />
+                <SignUp /> {/* ← capital U, matches the import */}
               </PublicRoute>
             }
           />
