@@ -1,63 +1,74 @@
-const { supabase } = require("../config/supabase");
+const jwt = require("jsonwebtoken");
+const jwksClient = require("jwks-rsa");
 
-// 🔐 VERIFY USER (same as before)
-module.exports.verifyUser = async (req, res, next) => {
-  try {
-    // ✅ 1. Try cookie first
-    let token = req.cookies?.access_token;
+// Lazy-initialized — created on first request, not at module load time
+// so SUPABASE_URL is guaranteed to be loaded from .env already
+let client = null;
 
-    // ✅ 2. If not present → check Authorization header
-    if (!token) {
-      const authHeader = req.headers.authorization;
-
-      if (authHeader && authHeader.startsWith("Bearer ")) {
-        token = authHeader.split(" ")[1];
-      }
-    }
-
-    // ❌ No token anywhere
-    if (!token) {
-      return res.status(401).json({ message: "No token" });
-    }
-
-    // ✅ Verify token
-    const { data, error } = await supabase.auth.getUser(token);
-
-    if (error || !data.user) {
-      return res.status(401).json({ message: "Invalid token" });
-    }
-
-    req.user = data.user;
-
-    next();
-  } catch (err) {
-    return res.status(500).json({ error: err.message });
+const getClient = () => {
+  if (!client) {
+    client = jwksClient({
+      jwksUri: `${process.env.SUPABASE_URL}/auth/v1/.well-known/jwks.json`,
+      cache: true,
+      rateLimit: true,
+    });
+    console.log(
+      "✅ JWKS client initialized:",
+      `${process.env.SUPABASE_URL}/auth/v1/.well-known/jwks.json`,
+    );
   }
+  return client;
 };
 
-// 🔥 NEW ROLE CHECK (FROM DATABASE)
+const getKey = (header, callback) => {
+  getClient().getSigningKey(header.kid, (err, key) => {
+    if (err) {
+      console.error("❌ Failed to get signing key:", err.message);
+      return callback(err);
+    }
+    callback(null, key.getPublicKey());
+  });
+};
+
+module.exports.verifyUser = (req, res, next) => {
+  let token = req.cookies?.access_token;
+
+  if (!token) {
+    const authHeader = req.headers.authorization;
+    if (authHeader?.startsWith("Bearer ")) {
+      token = authHeader.split(" ")[1];
+    }
+  }
+
+  if (!token) {
+    return res.status(401).json({ message: "No token" });
+  }
+
+  jwt.verify(token, getKey, { algorithms: ["ES256"] }, (err, decoded) => {
+    if (err) {
+      console.error("❌ Token verification failed:", err.message);
+      return res.status(401).json({ message: "Invalid or expired token" });
+    }
+
+    req.user = {
+      id: decoded.sub,
+      email: decoded.email,
+      user_metadata: decoded.user_metadata || {},
+      app_metadata: decoded.app_metadata || {},
+    };
+
+    next();
+  });
+};
+
 module.exports.allowRoles = (...roles) => {
-  return async (req, res, next) => {
+  return (req, res, next) => {
     try {
-      const userId = req.user.id;
+      const role = req.user.user_metadata?.role || req.user.app_metadata?.role;
 
-      // 🔍 fetch role from profiles table
-      const { data: profile, error } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", userId)
-        .single();
-
-      if (error || !profile) {
-        return res.status(403).json({ message: "Profile not found" });
-      }
-
-      const role = profile.role;
-
-      if (!roles.includes(role)) {
+      if (!role || !roles.includes(role)) {
         return res.status(403).json({ message: "Access denied" });
       }
-
       next();
     } catch (err) {
       return res.status(500).json({ error: err.message });

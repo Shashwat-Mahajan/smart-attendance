@@ -1,10 +1,21 @@
-
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import api from "../lib/api";
 import ODRequestForm from "./ODRequestForm";
 import AttendanceCharts from "./AttendanceCharts";
 import Header from "./Header";
 import Footer from "./Footer";
+
+const DEVICE_ID_KEY = "smart_attendance_device_id";
+const getDeviceId = () => {
+  let deviceId = localStorage.getItem(DEVICE_ID_KEY);
+  if (!deviceId) {
+    deviceId =
+      (typeof crypto !== "undefined" && crypto.randomUUID?.()) ||
+      `dev-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    localStorage.setItem(DEVICE_ID_KEY, deviceId);
+  }
+  return deviceId;
+};
 
 const QrCodeIcon = ({ className }) => (
   <svg
@@ -76,7 +87,7 @@ const QrScanner = ({ onScanSuccess, onScanError }) => {
         fps: 10,
         supportedScanTypes: [window.Html5QrcodeScanType.SCAN_TYPE_CAMERA],
       },
-      false
+      false,
     );
 
     html5QrcodeScanner.render(onScanSuccess, onScanError);
@@ -124,22 +135,20 @@ const App = () => {
 
     try {
       const qrPayload = JSON.parse(decodedText);
-      const studentId = "STUDENT123"; // Replace with actual login ID
+      const deviceId = getDeviceId();
 
-      const res = await axios.post(
-        "https://discursively-semiformed-herschel.ngrok-free.dev/api/attendance/mark",
-        {
-          studentId,
-          token: qrPayload.token,
-          className: qrPayload.className,
-          subject: qrPayload.subject,
-        }
-      );
+      // studentId is NOT sent from the client.
+      // The backend reads it from the verified Supabase JWT (req.user.id).
+      // api.js automatically attaches the Bearer token to every request.
+      const res = await api.post("/api/attendance/mark", {
+        token: qrPayload.token,
+        deviceId,
+      });
 
       setAttendanceMessage(res.data.message);
     } catch (err) {
       setAttendanceMessage(
-        err.response?.data?.message || "Failed to mark attendance"
+        err.response?.data?.message || "Failed to mark attendance",
       );
     }
   };
@@ -179,7 +188,7 @@ const App = () => {
 
   return (
     <>
-    <Header />
+      <Header />
       <div className="bg-gray-100 min-h-screen mt-[80px]">
         <main className="p-4 md:p-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-8">

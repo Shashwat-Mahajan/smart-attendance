@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
-import axios from "axios";
 import { BrowserQRCodeSvgWriter } from "@zxing/library";
+import api from "../lib/api";
 import AttendancePanel from "../components/AttendancePannel";
 import PendingRequests from "../components/PendingRequest";
 import Header from "../UI/Header";
@@ -8,34 +8,6 @@ import Card from "../UI/Card";
 import LiveAttendance from "../components/LiveAttendace";
 
 function RollingQR() {
-  // Full mock list of students
-  const mockStudents = [
-    {
-      studentName: "Samanvay Agrawal",
-      studentId: "CS2024001",
-      status: "Present",
-      time: "09:02 AM",
-    },
-    {
-      studentName: "Sarah Johnson",
-      studentId: "CS2024011",
-      status: "Present",
-      time: "09:02 AM",
-    },
-    {
-      studentName: "Mike Chen",
-      studentId: "CS2024032",
-      status: "Late",
-      time: "09:12 AM",
-    },
-    {
-      studentName: "Emily Davis",
-      studentId: "CS2024045",
-      status: "Present",
-      time: "09:20 AM",
-    },
-  ];
-
   const [liveAttendanceData, setLiveAttendanceData] = useState([]);
   const [showLiveAttendance, setShowLiveAttendance] = useState(false);
   const [qrData, setQrData] = useState(null);
@@ -46,30 +18,42 @@ function RollingQR() {
   const intervalRef = useRef(null);
   const attendanceIntervalRef = useRef(null);
 
+  // ─── QR fetch ────────────────────────────────────────────────────────────
   const fetchQR = async () => {
     if (!className || !subject) return;
-    const res = await axios.get(
-      "https://smart-attendance-1-a701.onrender.com/api/qr/generate",
-      {
+    try {
+      const res = await api.get("/api/qr/generate", {
         params: { className, subject },
-      },
-    );
-    setQrData(res.data);
+      });
+      setQrData(res.data);
+    } catch (err) {
+      console.error("Failed to fetch QR:", err);
+    }
+  };
+
+  // ─── Live attendance: poll the real DB every 5 seconds ───────────────────
+  const fetchLiveAttendance = async () => {
+    if (!className || !subject) return;
+    try {
+      const res = await api.get("/api/attendance/live", {
+        params: { className, subject },
+      });
+      setLiveAttendanceData(res.data.students);
+    } catch (err) {
+      console.error(
+        "Failed to fetch live attendance:",
+        err.response?.data || err.message,
+      );
+    }
   };
 
   const startLiveAttendance = () => {
     setLiveAttendanceData([]);
-    let index = 0;
-
-    attendanceIntervalRef.current = setInterval(() => {
-      if (index < mockStudents.length) {
-        setLiveAttendanceData([mockStudents[index]]);
-      } else {
-        clearInterval(attendanceIntervalRef.current);
-      }
-    }, 2000); // 1 second gap
+    fetchLiveAttendance(); // load immediately on start
+    attendanceIntervalRef.current = setInterval(fetchLiveAttendance, 5000);
   };
 
+  // ─── Toggle QR session on/off ─────────────────────────────────────────────
   const toggleQR = () => {
     if (isActive) {
       clearInterval(intervalRef.current);
@@ -84,19 +68,17 @@ function RollingQR() {
       setIsActive(true);
       setTimeout(() => {
         setShowLiveAttendance(true);
-        startLiveAttendance(); // Start showing students one by one
-      }, 2000); // 1.5 sec delay after QR appears
+        startLiveAttendance();
+      }, 2000);
     }
   };
 
+  // ─── Render QR SVG ────────────────────────────────────────────────────────
   useEffect(() => {
     if (!qrData || !qrRef.current) return;
-
     try {
       const writer = new BrowserQRCodeSvgWriter();
-
       const svg = writer.write(JSON.stringify(qrData), 250, 250);
-
       qrRef.current.innerHTML = "";
       qrRef.current.appendChild(svg);
     } catch (err) {
@@ -104,6 +86,7 @@ function RollingQR() {
     }
   }, [qrData]);
 
+  // ─── Cleanup on unmount ───────────────────────────────────────────────────
   useEffect(() => {
     return () => {
       clearInterval(intervalRef.current);

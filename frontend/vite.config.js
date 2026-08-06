@@ -7,7 +7,16 @@ export default defineConfig({
   server: {
     host: true,
     port: 5173,
-    strictPort: false,
-    allowedHosts: ["discursively-semiformed-herschel.ngrok-free.dev"], // just the host, no https:// or /
+    allowedHosts: [
+      "discursively-semiformed-herschel.ngrok-free.dev",
+      "localhost",
+    ],
+    proxy: {
+      "/api": {
+        target: "http://localhost:5000",
+        changeOrigin: true,
+        secure: false,
+      },
+    },
   },
 });
