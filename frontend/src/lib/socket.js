@@ -12,7 +12,11 @@ const SOCKET_URL = import.meta.env.VITE_API_URL || undefined;
 const socket = io(SOCKET_URL, {
   autoConnect: false,
   withCredentials: true,
-  transports: ["websocket", "polling"],
+  // Poll first, then upgrade to websocket — this is Socket.IO's default
+  // and matters on Render: the initial handshake over polling gets through
+  // the edge proxy reliably, then it upgrades. Starting with websocket-only
+  // can get refused, especially on a cold start.
+  transports: ["polling", "websocket"],
 });
 
 export default socket;
