@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { BrowserQRCodeSvgWriter } from "@zxing/library";
 import api from "../lib/api";
+import socket from "../lib/socket";
 import AttendancePanel from "../components/AttendancePannel";
 import PendingRequests from "../components/PendingRequest";
 import Header from "../UI/Header";
@@ -16,7 +17,6 @@ function RollingQR() {
   const [isActive, setIsActive] = useState(false);
   const qrRef = useRef(null);
   const intervalRef = useRef(null);
-  const attendanceIntervalRef = useRef(null);
 
   // ─── QR fetch ────────────────────────────────────────────────────────────
   const fetchQR = async () => {
@@ -31,8 +31,8 @@ function RollingQR() {
     }
   };
 
-  // ─── Live attendance: poll the real DB every 5 seconds ───────────────────
-  const fetchLiveAttendance = async () => {
+  // ─── One-time load of whatever's already marked when the session starts ──
+  const fetchInitialAttendance = async () => {
     if (!className || !subject) return;
     try {
       const res = await api.get("/api/attendance/live", {
@@ -47,17 +47,38 @@ function RollingQR() {
     }
   };
 
+  // ─── Live attendance: Socket.IO push instead of 5s polling ───────────────
   const startLiveAttendance = () => {
     setLiveAttendanceData([]);
-    fetchLiveAttendance(); // load immediately on start
-    attendanceIntervalRef.current = setInterval(fetchLiveAttendance, 5000);
+    fetchInitialAttendance(); // seed with anything already marked
+
+    if (!socket.connected) socket.connect();
+    socket.emit("join:session", { className, subject });
+
+    socket.on("attendance:new", (record) => {
+      // Guard against stale events if the session/room changes mid-flight
+      if (record.className !== className || record.subject !== subject) return;
+      setLiveAttendanceData((prev) => {
+        // avoid duplicates if the same student event arrives twice
+        if (prev.some((s) => s.studentId === record.studentId)) return prev;
+        return [...prev, record];
+      });
+    });
+  };
+
+  const stopLiveAttendance = () => {
+    socket.off("attendance:new");
+    if (className && subject) {
+      socket.emit("leave:session", { className, subject });
+    }
+    if (socket.connected) socket.disconnect();
   };
 
   // ─── Toggle QR session on/off ─────────────────────────────────────────────
   const toggleQR = () => {
     if (isActive) {
       clearInterval(intervalRef.current);
-      clearInterval(attendanceIntervalRef.current);
+      stopLiveAttendance();
       setQrData(null);
       setIsActive(false);
       setShowLiveAttendance(false);
@@ -90,8 +111,9 @@ function RollingQR() {
   useEffect(() => {
     return () => {
       clearInterval(intervalRef.current);
-      clearInterval(attendanceIntervalRef.current);
+      stopLiveAttendance();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
