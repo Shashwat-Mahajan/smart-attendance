@@ -2,12 +2,14 @@ require("dotenv").config();
 console.log("ENV CHECK:", process.env.SUPABASE_URL);
 
 const express = require("express");
+const http = require("http");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
 
 const connectDB = require("./config/db.js");
+const { initSocket } = require("./config/socket.js");
 
 const deviceRoutes = require("./routes/deviceRoutes.js");
 const qrRoutes = require("./routes/qrRoutes.js");
@@ -95,8 +97,17 @@ app.use("/api/attendance", attendanceLimiter, attendanceRoutes);
 
 const PORT = process.env.PORT || 5000;
 
+// ✅ Wrap Express in a raw HTTP server so Socket.IO can attach to it.
+// (Socket.IO needs the underlying http.Server, not the Express app itself.)
+const httpServer = http.createServer(app);
+
+// ✅ Initialize Socket.IO on the same server/port — no second port needed,
+// and it reuses the same CORS allow-list as the REST API.
+initSocket(httpServer, allowedOrigins);
+
 connectDB().then(() => {
-  app.listen(PORT, "0.0.0.0", () => {
+  httpServer.listen(PORT, "0.0.0.0", () => {
     console.log(`🚀 Server running on http://localhost:${PORT}`);
+    console.log(`🔌 Socket.IO ready`);
   });
 });

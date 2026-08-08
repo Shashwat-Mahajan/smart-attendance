@@ -1,5 +1,6 @@
 const { Queue, Worker } = require("bullmq");
 const Attendance = require("../models/Attendance");
+const { getIO } = require("../config/socket.js");
 
 // Upstash requires TLS — the tls:{} option enables it
 const connection = {
@@ -41,6 +42,29 @@ const attendanceWorker = new Worker(
 
     await attendance.save();
     console.log(`✅ Attendance saved for ${studentName}`);
+
+    // ─── Emit real-time update to the teacher dashboard ───────────────────
+    // Room is scoped to className:subject so only the teacher watching
+    // this exact session gets the event (see config/socket.js).
+    try {
+      const io = getIO();
+      const room = `${className}:${subject}`;
+      io.to(room).emit("attendance:new", {
+        studentId,
+        studentName,
+        enrollmentNo,
+        department,
+        className,
+        subject,
+        markedAt: attendance.createdAt || new Date(),
+      });
+    } catch (err) {
+      // Don't fail the job if the socket layer isn't ready/available —
+      // attendance is already saved, this is just the live-update push.
+      console.error("⚠️ Failed to emit attendance:new:", err.message);
+    }
+
+    return attendance;
   },
   {
     connection,
