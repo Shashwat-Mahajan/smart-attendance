@@ -1,9 +1,11 @@
 import axios from "axios";
 import supabase from "./supabaseClient";
 
-// Empty string means requests go to same host — Vite proxy handles /api → localhost:5000
+// Local dev: "" so requests go to same host — Vite proxy handles /api → localhost:5000
+// Production (Vercel): VITE_API_URL must be set to the Render backend URL,
+// since there's no dev-server proxy in a static production build.
 const api = axios.create({
-  baseURL: "",
+  baseURL: import.meta.env.VITE_API_URL || "",
   withCredentials: true,
 });
 
