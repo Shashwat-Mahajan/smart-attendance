@@ -75,4 +75,5 @@ module.exports = {
   hasDeviceAlreadyMarked,
   saveAttendance,
   getLiveAttendance,
+  getTodayRange, // ← was missing; attendanceController.js imports this directly
 };
