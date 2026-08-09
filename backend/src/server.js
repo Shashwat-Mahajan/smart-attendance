@@ -95,6 +95,16 @@ app.use("/api/device", generalLimiter, deviceRoutes);
 app.use("/api/qr", qrLimiter, qrRoutes);
 app.use("/api/attendance", attendanceLimiter, attendanceRoutes);
 
+// ✅ GLOBAL ERROR HANDLER — safety net so ANY uncaught error in a route
+// (malformed JSON body, sync throw, etc.) gets logged and returns JSON
+// instead of silently producing a bare 500 with no trace in the logs.
+app.use((err, req, res, next) => {
+  console.error("❌ Unhandled error:", err.message, err.stack);
+  res
+    .status(err.status || 500)
+    .json({ message: err.message || "Internal server error" });
+});
+
 const PORT = process.env.PORT || 5000;
 
 // ✅ Wrap Express in a raw HTTP server so Socket.IO can attach to it.

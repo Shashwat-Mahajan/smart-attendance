@@ -13,6 +13,16 @@ const connection = {
 // Queue — accepts jobs instantly, no DB touch at scan time
 const attendanceQueue = new Queue("attendance", { connection });
 
+// ⚠️ CRITICAL: ioredis/BullMQ connections are EventEmitters. An 'error'
+// event with no listener throws and CRASHES the entire Node process —
+// silently, with no stack trace reaching your controller's try/catch,
+// and no console.error from your own code. This is almost certainly why
+// requests were failing with a 500 and zero application logs. These
+// listeners turn a process crash into a visible, recoverable log line.
+attendanceQueue.on("error", (err) => {
+  console.error("❌ Redis Queue connection error:", err.message);
+});
+
 // Worker — processes jobs in controlled batches
 // concurrency: 10 means max 10 simultaneous DB writes
 const attendanceWorker = new Worker(
@@ -49,14 +59,21 @@ const attendanceWorker = new Worker(
     try {
       const io = getIO();
       const room = `${className}:${subject}`;
+      const markedAt = attendance.date || attendance.createdAt || new Date();
+
+      // Shape matches attendanceController.getLiveAttendance's REST format
+      // exactly, since the frontend seeds its list from that endpoint and
+      // then appends socket events into the same array/table.
       io.to(room).emit("attendance:new", {
-        studentId,
         studentName,
-        enrollmentNo,
-        department,
+        studentId: enrollmentNo || studentId,
+        status: "Present",
+        time: new Date(markedAt).toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
         className,
         subject,
-        markedAt: attendance.createdAt || new Date(),
       });
     } catch (err) {
       // Don't fail the job if the socket layer isn't ready/available —
@@ -78,6 +95,12 @@ attendanceWorker.on("completed", (job) => {
 
 attendanceWorker.on("failed", (job, err) => {
   console.error(`❌ Job ${job.id} failed:`, err.message);
+});
+
+// Same crash-prevention as the queue above — the worker has its own
+// Redis connection and needs its own error listener.
+attendanceWorker.on("error", (err) => {
+  console.error("❌ Redis Worker connection error:", err.message);
 });
 
 module.exports = { attendanceQueue };
